@@ -1,0 +1,22 @@
+AABCDE - An Audio Book CD Extractor
+===================================
+
+This is a very simple helper script for converting audio book CDs into m4b
+audiobook format. Usage is simple enough, just run the script:
+ $ aabcde
+and it will extract the CDs and eventually copy the output files to
+$HOME/Audiobooks.
+
+The script saves its state so that it can continue in case the extraction is
+interrupted (extracting a 20 disc audio book takes some time). When re-run in
+the same directory after an interrupted the script will continue from where it
+was.
+
+REQUIREMENTS:
+- python
+- cdparanoia
+- faac
+- gpac (for MP4Box)
+- mp4v2-utils (for mp4tags)
+
+Author: Markus Lehtonen <knaeaepae@gmail.com>
