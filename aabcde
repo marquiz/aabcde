@@ -252,7 +252,7 @@ def parse_arguments(argv):
 
 def main(argv=None):
     """Main script entry point"""
-
+    ret = 0
     args = parse_arguments(argv)
     if args.quiet:
         log_level = logging.WARNING
@@ -313,9 +313,13 @@ def main(argv=None):
         # Cleanup
         logging.info('Cleaning up...')
         shutil.rmtree(workdir)
+    except KeyboardInterrupt:
+        print "\nAborted by user!"
+        ret = 1
     finally:
         if os.path.exists(workdir):
             write_conf(conf, conf_file)
+    return ret
 
 if __name__ == '__main__':
     sys.exit(main())
