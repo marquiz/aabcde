@@ -196,7 +196,7 @@ def rip_disc(conf, discnum, verbose=False):
         if track_statuses[tracknum] == 'encode':
             wav = "track%02d.cdda.wav" % int(tracknum)
             logging.info('Encoding track %s...', tracknum)
-            run_cmd(['faac', '-q', '80', '-o', aac, wav], capture_output,
+            run_cmd(['faac', '-q', '60', '-o', aac, wav], capture_output,
                     capture_output)
             os.unlink(wav)
             track_statuses[tracknum] = 'ready'
