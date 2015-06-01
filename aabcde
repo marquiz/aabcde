@@ -75,7 +75,7 @@ def read_conf(conf_file):
 def write_conf(conf, conf_file):
     """Write configuration/metadata/status file"""
     with open(conf_file, 'w') as f:
-        json.dump(conf, f)
+        json.dump(conf, f, indent=4, sort_keys=True)
 
 def run_cmd(cmd, capture_stdout=False, capture_stderr=False):
     """Run command"""
