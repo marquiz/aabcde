@@ -18,6 +18,7 @@
 # MA 02110-1301, USA.
 """A simple script for converting audiobook CDs into m4b"""
 
+import argparse
 import json
 import logging
 import os
@@ -149,8 +150,9 @@ def wait_for_disc(verbose=False):
         else:
             return
 
-def rip_disc(conf, discnum):
+def rip_disc(conf, discnum, verbose=False):
     """Extract and encode one disc"""
+    capture_output = not verbose
     orig_dir = os.path.abspath(os.curdir)
     discid = 'CD%02d' % discnum
 
@@ -188,13 +190,14 @@ def rip_disc(conf, discnum):
         if track_statuses[tracknum] == 'rip':
             logging.info('Reading track %s...', tracknum)
             run_cmd(['cdparanoia', '-B', '-Z', '--never-skip=40', tracknum],
-                    True, True)
+                    capture_output, capture_output)
             run_cmd(['eject', '-x', '40'])
             track_statuses[tracknum] = 'encode'
         if track_statuses[tracknum] == 'encode':
             wav = "track%02d.cdda.wav" % int(tracknum)
             logging.info('Encoding track %s...', tracknum)
-            run_cmd(['faac', '-q', '80', '-o', aac, wav], True, True)
+            run_cmd(['faac', '-q', '80', '-o', aac, wav], capture_output,
+                    capture_output)
             os.unlink(wav)
             track_statuses[tracknum] = 'ready'
         if track_statuses[tracknum] != 'ready':
@@ -205,7 +208,8 @@ def rip_disc(conf, discnum):
     mp4_file = '../disc-%d.m4b' % discnum
     if disc_status['disc_status'] == 'cat':
         logging.info('Concatenating tracks')
-        run_cmd(['MP4Box'] + cat_args + ['disc.aac'], True, True)
+        run_cmd(['MP4Box'] + cat_args + ['disc.aac'], capture_output,
+                capture_output)
         disc_status['disc_status'] = 'add'
     if disc_status['disc_status'] == 'add':
         # Write TOC file
@@ -216,7 +220,7 @@ def rip_disc(conf, discnum):
         logging.info('Creating MP4 container')
         run_cmd(['MP4Box', '-chap', 'chapters.txt', '-add', 'disc.aac',
                  mp4_file],
-                True, True)
+                capture_output, capture_output)
         disc_status['disc_status'] = 'tag'
     if disc_status['disc_status'] == 'tag':
         logging.info('Tagging MP4 container')
@@ -225,7 +229,7 @@ def rip_disc(conf, discnum):
                  '-genre', 'Audiobooks', '-song', 'Disc %d' % discnum,
                  '-year', str(conf['year']), '-writer', conf['author'],
                  mp4_file],
-                True)
+                capture_output)
         disc_status['disc_status'] = 'cleanup'
     if disc_status['disc_status'] == 'cleanup':
         logging.info('Cleaning up temporary files of Disc %d...', discnum)
@@ -236,11 +240,29 @@ def rip_disc(conf, discnum):
         raise MyError("BUG: Invalid disc status: %s" %
                       disc_status['disc_status'])
 
+def parse_arguments(argv):
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-q', '--quiet', action='store_true',
+                        help='Be as quiet as possible')
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help='Verbose output')
+    return parser.parse_args(argv)
+
 
 def main(argv=None):
     """Main script entry point"""
+
+    args = parse_arguments(argv)
+    if args.quiet:
+        log_level = logging.WARNING
+    elif args.verbose:
+        log_level = logging.DEBUG
+    else:
+        log_level = logging.INFO
+
     # Setup logging
-    logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(message)s')
+    logging.basicConfig(level=log_level, format='%(levelname)s:%(message)s')
 
     # Use current directory as base for working directory
     workdir = os.path.abspath('./in-progress')
@@ -267,7 +289,7 @@ def main(argv=None):
                 raw_input("Please insert Disc %d of '%s'.\n"
                           "Press enter to continue..." % (i, conf['title']))
                 wait_for_disc(True)
-            rip_disc(conf, i)
+            rip_disc(conf, i, args.verbose)
             os.chdir(workdir)
 
             logging.info('Ejecting disk...')
