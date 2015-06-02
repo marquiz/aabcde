@@ -39,12 +39,12 @@ def ask_value(msg, validator_func, default=None):
     if default is not None:
         msg = msg + ' [%s]'
     while True:
-        value = raw_input('%s ' % msg)
+        value = raw_input('%s ' % msg.encode('utf-8'))
         if not value and default is not None:
             value = default
         try:
             if validator_func(value):
-                return value
+                return value.decode('utf-8')
         except ValueError:
             pass
 
@@ -286,8 +286,9 @@ def main(argv=None):
                 print "Please insert disc %d" % i
                 wait_for_disc()
             else:
-                raw_input("Please insert Disc %d of '%s'.\n"
-                          "Press enter to continue..." % (i, conf['title']))
+                raw_input(("Please insert Disc %d of '%s'.\n"
+                           "Press enter to continue..." %
+                           (i, conf['title'])).encode('utf-8'))
                 wait_for_disc(True)
             rip_disc(conf, i, args.verbose)
             os.chdir(workdir)
