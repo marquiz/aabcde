@@ -150,6 +150,15 @@ def wait_for_disc(verbose=False):
         else:
             return
 
+def cat_aac(in_files, out_file, verbose):
+    """Concatenate AAC files"""
+    capture_output = not verbose
+    cat_args = []
+    for fname in in_files:
+        cat_args.extend(['-cat', fname])
+    run_cmd(['MP4Box'] + cat_args + [out_file], capture_output,
+            capture_output)
+
 def rip_disc(conf, discnum, verbose=False):
     """Extract and encode one disc"""
     capture_output = not verbose
@@ -174,10 +183,10 @@ def rip_disc(conf, discnum, verbose=False):
     toc = conf['toc'][discid]
 
     # Rip tracks
-    cat_args = []
+    track_files = []
     for tracknum in sorted(toc, key=int):
         aac = "track-%s.aac" % tracknum
-        cat_args.extend(['-cat', aac])
+        track_files.append(aac)
 
         if not tracknum in track_statuses:
             track_statuses[tracknum] = 'rip'
@@ -208,8 +217,7 @@ def rip_disc(conf, discnum, verbose=False):
     mp4_file = '../disc-%d.m4b' % discnum
     if disc_status['disc_status'] == 'cat':
         logging.info('Concatenating tracks')
-        run_cmd(['MP4Box'] + cat_args + ['disc.aac'], capture_output,
-                capture_output)
+        cat_aac(track_files, 'disc.aac', verbose)
         disc_status['disc_status'] = 'add'
     if disc_status['disc_status'] == 'add':
         # Write TOC file
