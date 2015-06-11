@@ -248,6 +248,17 @@ def rip_disc(conf, discnum, verbose=False):
         raise MyError("BUG: Invalid disc status: %s" %
                       disc_status['disc_status'])
 
+def concat_discs(conf, tgt_file, verbose):
+    """Concatenate all disks into one"""
+    disc_files = ['disc-%d.m4b' % i for i in xrange(1, conf['num_discs'] + 1)]
+    logging.debug('Concatenating %s -> %s' % (disc_files, tgt_file))
+    cat_aac(disc_files, tgt_file, verbose)
+    logging.debug('Tagging combined file')
+    run_cmd(['mp4tags', '-album', conf['title'], '-artist', conf['author'],
+             '-genre', 'Audiobooks', '-song', conf['title'],
+             '-year', str(conf['year']), '-writer', conf['author'],
+             tgt_file], not verbose)
+
 def parse_arguments(argv):
     """Parse command line arguments"""
     parser = argparse.ArgumentParser()
@@ -258,6 +269,8 @@ def parse_arguments(argv):
     parser.add_argument('-o', '--output-dir',
                         default=os.path.join(os.environ['HOME'], 'Audiobooks'),
                         help='Directory where audio book is copied to')
+    parser.add_argument('-1', '--onefile', action='store_true',
+                        help='Create one big file instead of one per CD')
     args = parser.parse_args(argv)
     args.output_dir = os.path.abspath(args.output_dir)
     return args
@@ -312,18 +325,27 @@ def main(argv=None):
             ejected = True
             print 'Disc %d successfully extracted!\n' % i
 
-        tgt_dir = os.path.join(args.output_dir,
-                               "%s - %s" % (conf['author'], conf['title']))
+        if args.onefile:
+            # Combine into one monolithic audiobook file
+            tgt_dir = args.output_dir
+            logging.info('Combining disc files')
+            concat_discs(conf, 'all.m4b', args.verbose)
+            move_files = [('all.m4b',
+                           "%s - %s.m4b" % (conf['author'], conf['title']))]
+        else:
+            tgt_dir = os.path.join(args.output_dir,
+                                   "%s - %s" % (conf['author'], conf['title']))
+            move_files = [('disc-%d.m4b' % i,
+                           "%s (%d).m4b" % (conf['title'], i)) for
+                          i in disc_nums]
 
-        # Move and rename output files
+        # Move (and rename) output files to final location
         mkdir(tgt_dir)
-        for i in disc_nums:
-            src_file = 'disc-%d.m4b' % i
-            tgt_file = os.path.join(tgt_dir,
-                                    "%s (%d).m4b" % (conf['title'], i))
+        for src_file, tgt_file in move_files:
+            tgt_path = os.path.join(tgt_dir, tgt_file)
             if not os.path.isfile(tgt_file):
-                logging.info('Moving %s -> %s ', src_file, tgt_file)
-                shutil.move(src_file, tgt_file)
+                logging.info('Moving %s -> %s ', src_file, tgt_path)
+                shutil.move(src_file, tgt_path)
 
         # Cleanup
         logging.info('Cleaning up...')
