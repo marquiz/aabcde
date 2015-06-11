@@ -247,7 +247,12 @@ def parse_arguments(argv):
                         help='Be as quiet as possible')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='Verbose output')
-    return parser.parse_args(argv)
+    parser.add_argument('-o', '--output-dir',
+                        default=os.path.join(os.environ['HOME'], 'Audiobooks'),
+                        help='Directory where audio book is copied to')
+    args = parser.parse_args(argv)
+    args.output_dir = os.path.abspath(args.output_dir)
+    return args
 
 
 def main(argv=None):
@@ -299,7 +304,7 @@ def main(argv=None):
             ejected = True
             print 'Disc %d successfully extracted!\n' % i
 
-        tgt_dir = os.path.join(os.environ['HOME'], 'Audiobooks',
+        tgt_dir = os.path.join(args.output_dir,
                                "%s - %s" % (conf['author'], conf['title']))
 
         # Move and rename output files
