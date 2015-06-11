@@ -215,7 +215,7 @@ def rip_disc(conf, discnum, verbose=False):
         # Write TOC file
         with open('chapters.txt', 'w') as f:
             for i in sorted(toc, key=int):
-                f.write("%s Track %s\n" % (toc[i], i))
+                f.write("%s Disc %d - Track %s\n" % (toc[i], discnum, i))
         # Create container
         logging.info('Creating MP4 container')
         run_cmd(['MP4Box', '-chap', 'chapters.txt', '-add', 'disc.aac',
