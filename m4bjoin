@@ -1,0 +1,139 @@
+#!/usr/bin/python
+#
+# Copyright (C) 2015 Markus Lehtonen <knaeaepae@gmail.com>
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+# MA 02110-1301, USA.
+"""A simple script for converting audiobook CDs into m4b"""
+
+import argparse
+import glob
+import logging
+import os
+import re
+import subprocess
+import sys
+
+
+class MyError(Exception):
+    """Local errors"""
+    pass
+
+
+def run_cmd(cmd, capture_stdout=False, capture_stderr=False):
+    """Run command"""
+    stdout = subprocess.PIPE if capture_stdout else None
+    stderr = subprocess.PIPE if capture_stderr else None
+    logging.debug("Running command: '%s'", ' '.join(cmd))
+    popen = subprocess.Popen(cmd, stdout=stdout, stderr=stderr)
+    stdout, stderr = popen.communicate()
+    ret_out = stdout.splitlines() if stdout else stdout
+    ret_err = stderr.splitlines() if stderr else stderr
+    if popen.returncode:
+        err_detail = ': ' + stderr if stderr else ''
+        raise MyError("Command '%s' failed%s" % (' '.join(cmd), err_detail))
+    return (ret_out, ret_err)
+
+
+def get_book_info(fname):
+    """Get needed ID3 tag info from an audio book"""
+    tag_re = re.compile(r' ([a-zA-Z ]+): (\S.+)')
+    stdout, _ = run_cmd(['mp4info', fname], True, False)
+    tags = {}
+    for line in stdout:
+        match = tag_re.match(line)
+        if match:
+            tags[match.group(1)] = match.group(2)
+    logging.debug('Found tags: %s', tags)
+    return tags
+
+
+def cat_aac(in_files, out_file, verbose):
+    """Concatenate AAC files"""
+    capture_output = not verbose
+    cat_args = []
+    for fname in in_files:
+        cat_args.extend(['-cat', fname])
+    run_cmd(['MP4Box'] + cat_args + [out_file], capture_output,
+            capture_output)
+
+
+def parse_arguments(argv):
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help='Verbose output')
+    parser.add_argument('-o', '--output-dir',
+                        default='.',
+                        help='Directory where output is copied to')
+    parser.add_argument('input_dir', metavar='INPUT_DIR',
+                        help='Directory containing audio book')
+    args = parser.parse_args(argv)
+    print args
+    args.output_dir = os.path.abspath(args.output_dir)
+    args.input_dir = os.path.abspath(args.input_dir)
+    return args
+
+
+def main(argv=None):
+    """Main script entry point"""
+    ret = 0
+    args = parse_arguments(argv)
+    if args.verbose:
+        log_level = logging.DEBUG
+    else:
+        log_level = logging.INFO
+
+    # Setup logging
+    logging.basicConfig(level=log_level, format='%(levelname)s:%(message)s')
+
+    # Get input files
+    disc_file_list = glob.glob(args.input_dir + os.sep + '*.m4b')
+    fname_re = re.compile(r'.*\(([0-9]+)\)\.m4b')
+    disc_files = {}
+    for path in disc_file_list:
+        discnum = int(fname_re.match(path).group(1))
+        disc_files[discnum] = path
+
+    # Get book info
+    book_info = get_book_info(disc_file_list[0])
+
+    # Join disc files
+    tgt_file = os.path.join(args.output_dir, "%s - %s.m4b" %
+                            (book_info['Artist'], book_info['Album']))
+    disc_file_list = []
+    for discnum in sorted(disc_files):
+        disc_file_list.append(disc_files[discnum])
+    logging.info('Combining:\n    %s\n -> %s',
+                 '\n    '.join([os.path.basename(f) for f in disc_file_list]),
+                  tgt_file)
+
+    cat_aac(disc_file_list, tgt_file, args.verbose)
+
+    # Tag the output file
+    logging.info('Tagging target file %s', tgt_file)
+    run_cmd(['mp4tags',
+             '-album', book_info['Album'],
+             '-artist', book_info['Artist'],
+             '-genre', 'Audiobooks',
+             '-song', book_info['Album'],
+             '-year', book_info['Release Date'],
+             '-writer', book_info['Composer'],
+             tgt_file], not args.verbose)
+
+    return ret
+
+if __name__ == '__main__':
+    sys.exit(main())
