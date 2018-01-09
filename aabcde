@@ -77,19 +77,26 @@ def write_conf(conf, conf_file):
     with open(conf_file, 'w') as f:
         json.dump(conf, f, indent=4, sort_keys=True)
 
+class Cmd(object):
+    """Simple subprocess wrapper"""
+    def __init__(self, cmd, capture_stdout=False, capture_stderr=False):
+        stdout = subprocess.PIPE if capture_stdout else None
+        stderr = subprocess.PIPE if capture_stderr else None
+        self.proc = subprocess.Popen(cmd, stdout=stdout, stderr=stderr)
+
+    def wait(self):
+        stdout, stderr = self.proc.communicate()
+        ret_out = stdout.splitlines() if stdout else stdout
+        ret_err = stderr.splitlines() if stderr else stderr
+        if self.proc.returncode:
+            err_detail = ': ' + stderr if stderr else ''
+            raise MyError("Command '%s' failed%s" % (' '.join(cmd), err_detail))
+        return (ret_out, ret_err)
+
 def run_cmd(cmd, capture_stdout=False, capture_stderr=False):
     """Run command"""
-    stdout = subprocess.PIPE if capture_stdout else None
-    stderr = subprocess.PIPE if capture_stderr else None
     logging.debug("Running command: '%s'", ' '.join(cmd))
-    popen = subprocess.Popen(cmd, stdout=stdout, stderr=stderr)
-    stdout, stderr = popen.communicate()
-    ret_out = stdout.splitlines() if stdout else stdout
-    ret_err = stderr.splitlines() if stderr else stderr
-    if popen.returncode:
-        err_detail = ': ' + stderr if stderr else ''
-        raise MyError("Command '%s' failed%s" % (' '.join(cmd), err_detail))
-    return (ret_out, ret_err)
+    return Cmd(cmd, capture_stdout, capture_stderr).wait()
 
 def convert_timecode(stamp):
     """Convert cdparanoia timecodes into Quicktime format"""
@@ -185,6 +192,7 @@ def rip_disc(conf, discnum, verbose=False):
 
     # Rip tracks
     track_files = []
+    encoder_pool = dict()
     for tracknum in sorted(toc, key=int):
         aac = "track-%s.aac" % tracknum
         track_files.append(aac)
@@ -205,11 +213,20 @@ def rip_disc(conf, discnum, verbose=False):
             track_statuses[tracknum] = 'encode'
         if track_statuses[tracknum] == 'encode':
             wav = "track%02d.cdda.wav" % int(tracknum)
-            logging.info('Encoding track %s...', tracknum)
-            run_cmd(['faac', '-q', '60', '-o', aac, wav], capture_output,
-                    capture_output)
-            os.unlink(wav)
-            track_statuses[tracknum] = 'ready'
+            logging.info('Spawning encode of track %s...', tracknum)
+            encoder_pool[tracknum] = Cmd(['faac', '-q', '60', '-o', aac, wav],
+                                         capture_output,
+                                         capture_output)
+    # Join encoder jobs
+    logging.info('Cleaning up encoder jobs...')
+    for tracknum, cmd in encoder_pool.items():
+        if cmd.proc.poll() is None:
+            logging.info('    waiting for %s...', tracknum)
+        cmd.wait()
+        os.unlink("track%02d.cdda.wav" % int(tracknum))
+        track_statuses[tracknum] = 'ready'
+
+    for tracknum in sorted(toc, key=int):
         if track_statuses[tracknum] != 'ready':
             raise MyError("BUG: Invalid track status: %s" %
                           track_statuses[tracknum])
