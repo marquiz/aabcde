@@ -291,7 +291,7 @@ def main(argv=None):
     logging.basicConfig(level=log_level, format='%(levelname)s:%(message)s')
 
     # Use current directory as base for working directory
-    workdir = os.path.abspath('./in-progress')
+    workdir = os.path.abspath('./aabcde-in-progress')
     mkdir(workdir)
 
     conf_file = os.path.abspath(os.path.join(workdir, 'rip.status'))
