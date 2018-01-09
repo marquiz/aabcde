@@ -279,6 +279,7 @@ def parse_arguments(argv):
 def main(argv=None):
     """Main script entry point"""
     ret = 0
+    conf = None
     args = parse_arguments(argv)
     if args.quiet:
         log_level = logging.WARNING
@@ -292,14 +293,15 @@ def main(argv=None):
 
     # Use current directory as base for working directory
     workdir = os.path.abspath('./aabcde-in-progress')
-    mkdir(workdir)
-
     conf_file = os.path.abspath(os.path.join(workdir, 'rip.status'))
-    conf = read_conf(conf_file)
-
+    mkdir(workdir)
     os.chdir(workdir)
 
     try:
+        # Get configuration
+        conf = read_conf(conf_file)
+
+        # Init variables
         ejected = False
         disc_nums = xrange(1, conf['num_discs'] + 1)
 
@@ -354,7 +356,7 @@ def main(argv=None):
         print "\nAborted by user!"
         ret = 1
     finally:
-        if os.path.exists(workdir):
+        if os.path.exists(workdir) and conf:
             write_conf(conf, conf_file)
     return ret
 
