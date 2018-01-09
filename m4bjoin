@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #
 # Copyright (C) 2015 Markus Lehtonen <knaeaepae@gmail.com>
 #
@@ -42,7 +42,7 @@ def run_cmd(cmd, capture_stdout=False, capture_stderr=False):
     ret_out = stdout.splitlines() if stdout else stdout
     ret_err = stderr.splitlines() if stderr else stderr
     if popen.returncode:
-        err_detail = ': ' + stderr if stderr else ''
+        err_detail = ': ' + stderr.decode() if stderr else ''
         raise MyError("Command '%s' failed%s" % (' '.join(cmd), err_detail))
     return (ret_out, ret_err)
 
@@ -53,6 +53,7 @@ def get_book_info(fname):
     stdout, _ = run_cmd(['mp4info', fname], True, False)
     tags = {}
     for line in stdout:
+        line = line.decode()
         match = tag_re.match(line)
         if match:
             tags[match.group(1)] = match.group(2)
@@ -81,7 +82,7 @@ def parse_arguments(argv):
     parser.add_argument('input_dir', metavar='INPUT_DIR',
                         help='Directory containing audio book')
     args = parser.parse_args(argv)
-    print args
+    print(args)
     args.output_dir = os.path.abspath(args.output_dir)
     args.input_dir = os.path.abspath(args.input_dir)
     return args

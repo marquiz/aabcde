@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #
 # Copyright (C) 2015 Markus Lehtonen <knaeaepae@gmail.com>
 #
@@ -39,12 +39,12 @@ def ask_value(msg, validator_func, default=None):
     if default is not None:
         msg = msg + ' [%s]'
     while True:
-        value = raw_input('%s ' % msg.encode('utf-8'))
+        value = input('%s ' % msg)
         if not value and default is not None:
             value = default
         try:
             if validator_func(value):
-                return value.decode('utf-8')
+                return value
         except ValueError:
             pass
 
@@ -106,6 +106,7 @@ def get_disc_toc():
     tracks = {}
     _, stderr = run_cmd(['cdparanoia', '-Q'], True, True)
     for line in stderr:
+        line = line.decode()
         if re.match(r'\s+\d', line):
             fields = line.strip().split()
             tracks[str(int(fields[0][:-1]))] = \
@@ -250,7 +251,7 @@ def rip_disc(conf, discnum, verbose=False):
 
 def concat_discs(conf, tgt_file, verbose):
     """Concatenate all disks into one"""
-    disc_files = ['disc-%d.m4b' % i for i in xrange(1, conf['num_discs'] + 1)]
+    disc_files = ['disc-%d.m4b' % i for i in range(1, conf['num_discs'] + 1)]
     logging.debug('Concatenating %s -> %s' % (disc_files, tgt_file))
     cat_aac(disc_files, tgt_file, verbose)
     logging.debug('Tagging combined file')
@@ -303,7 +304,7 @@ def main(argv=None):
 
         # Init variables
         ejected = False
-        disc_nums = xrange(1, conf['num_discs'] + 1)
+        disc_nums = range(1, conf['num_discs'] + 1)
 
         # Extract and encode CDs
         for i in disc_nums:
@@ -311,12 +312,12 @@ def main(argv=None):
                 continue
 
             if ejected:
-                print "Please insert disc %d" % i
+                print("Please insert disc %d" % i)
                 wait_for_disc()
             else:
-                raw_input(("Please insert Disc %d of '%s'.\n"
+                input("Please insert Disc %d of '%s'.\n"
                            "Press enter to continue..." %
-                           (i, conf['title'])).encode('utf-8'))
+                           (i, conf['title']))
                 run_cmd(['eject', '-t'], True, True)
                 wait_for_disc(True)
             rip_disc(conf, i, args.verbose)
@@ -325,7 +326,7 @@ def main(argv=None):
             logging.info('Ejecting disk...')
             run_cmd(['eject'])
             ejected = True
-            print 'Disc %d successfully extracted!\n' % i
+            print('Disc %d successfully extracted!\n' % i)
 
         if not args.multifile:
             # Combine into one monolithic audiobook file
@@ -353,7 +354,7 @@ def main(argv=None):
         logging.info('Cleaning up...')
         shutil.rmtree(workdir)
     except KeyboardInterrupt:
-        print "\nAborted by user!"
+        print("\nAborted by user!")
         ret = 1
     finally:
         if os.path.exists(workdir) and conf:
