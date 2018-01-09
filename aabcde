@@ -269,8 +269,8 @@ def parse_arguments(argv):
     parser.add_argument('-o', '--output-dir',
                         default=os.path.join(os.environ['HOME'], 'Audiobooks'),
                         help='Directory where audio book is copied to')
-    parser.add_argument('-1', '--onefile', action='store_true',
-                        help='Create one big file instead of one per CD')
+    parser.add_argument('-m', '--multifile', action='store_true',
+                        help='Create one file per CD instead of one big file')
     args = parser.parse_args(argv)
     args.output_dir = os.path.abspath(args.output_dir)
     return args
@@ -325,7 +325,7 @@ def main(argv=None):
             ejected = True
             print 'Disc %d successfully extracted!\n' % i
 
-        if args.onefile:
+        if not args.multifile:
             # Combine into one monolithic audiobook file
             tgt_dir = args.output_dir
             logging.info('Combining disc files')
